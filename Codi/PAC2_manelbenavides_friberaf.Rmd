@@ -1,6 +1,6 @@
 ---
 title: "PAC2"
-author: "Felix Ribera\nManel Benavides"
+author: "Fèlix Ribera - Manel Benavides"
 date: "5/1/2021"
 output:
   pdf_document: default
@@ -21,7 +21,7 @@ library(nortest)
 
 Es carreguen les dades i es comprova que els tipus de les dades siguin els esperats.
 ```{r carrega_dades}
-df <- read.csv("train.csv")
+df <- read.csv("../Dades/train.csv")
 head(df)
 str(df)
 summary(df)
@@ -262,3 +262,13 @@ plot(df$Parc,df$Fare, main="Scatterplot de Parents/childen vs. Fare",
      xlab="Parents/child", ylab = "Fare")
 
 ```
+
+## Exportació de les dades 
+
+S'exporten les dades en un fitxer csv.
+
+```{r export}
+write.csv(df,"../Dades/output.csv", row.names = FALSE)
+
+```
+
