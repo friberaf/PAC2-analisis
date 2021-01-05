@@ -1,14 +1,22 @@
 ---
 title: "PAC2"
-author: "Felix Ribera<br>Manel Benavides"
+author: "Felix Ribera\nManel Benavides"
 date: "5/1/2021"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
+library(corrplot)
+library(ggplot2)
+library(forcats)
+library(gridExtra)
+library(nortest)
 ```
+
 ### Lectura de dades
 
 Es carreguen les dades i es comprova que els tipus de les dades siguin els esperats.
@@ -34,7 +42,6 @@ Es passen els valors categòrics a tipus factor.
 
 ```{r discretitzacio }
 
-df$Survived <-  as.factor(df$Survived)
 df$Pclass <- as.factor(df$Pclass)
 df$Sex <- as.factor(df$Sex)
 df$Embarked <- as.factor(df$Embarked)
@@ -52,6 +59,15 @@ colSums(df=="")
 ```
 
 S'observa que hi ha 177 valors d'Age NA, 687 Cabin buits i 2 Embarked.
+
+
+Posem el valor de la mitjana en els missing values d'Age.
+
+```{r imputacio_age}
+age_mean <- mean(df$Age[!is.na(df$Age)])
+df$Age[is.na(df$Age)] <- age_mean
+
+```
 
 
 ### Identificació i tractament de valors extrems.
@@ -148,7 +164,7 @@ df.female <- df[df$Sex == "female",]
 
 ```{r check_normalitat}
 
-library(nortest)
+
 
 alpha = 0.05
 col.names = colnames(df)
@@ -164,23 +180,85 @@ for (i in 1:ncol(df)) {
 }
 
 
-fligner.test(Age ~ Fare, data = df)
+fligner.test(Survived ~ Age, data = df)
+fligner.test(Survived ~ Fare, data = df)
+fligner.test(Survived ~ SibSp, data = df)
+fligner.test(Survived ~ Parch, data = df)
 
 ```
 
 
-```{r matriu_correlacio}
+```{r corr_matriu}
 
-cor(df)
+df_num <- df[, sapply(df, is.numeric)]
+
+corrplot(cor(df_num), method="color", addCoef.col = "black")
 
 ```
 
+```{r t_test}
+str(df)
+df.male.survived <- df[df$Sex == "male",]$Survived
+df.female.survived <- df[df$Sex == "female",]$Survived
+
+t.test(df.male.survived, df.female.survived, alternative = "less")
+
+ggplot(df[1:891,], aes(Age, fill = factor(Survived))) + 
+  geom_histogram() + 
+  facet_grid(.~Sex) 
+
+```
+
+```{r models_lineals}
+
+model_1 <- lm(Survived ~ Age + Parch + SibSp + Fare + cabinNumber, data = df)
+model_2 <- lm(Survived ~ Pclass + Sex + Embarked + cabinType, data = df)
+model_3 <- lm(Survived ~ Age + Parch + SibSp + Fare + cabinNumber +
+                Pclass + Sex + Embarked + cabinType, data = df)
+
+taula.coeficients <- matrix(c(
+  "Quantitatives", summary(model_1)$r.squared,
+  "Qualitatives", summary(model_2)$r.squared,
+  "Mix", summary(model_3)$r.squared
+  ),
+    ncol = 2, byrow = TRUE)
+colnames(taula.coeficients) <- c("Model", "R^2")
+taula.coeficients
+```
 
 
+### Representacions gràfiques
 
 
+```{r grafics}
 
+gg_em <- ggplot(df, aes(x = Embarked, fill = as.factor(Survived))) + 
+  labs(fill="Survived") +
+  geom_bar(position = "dodge")
 
+gg_ctype <- ggplot(df, aes(x = cabinType, fill = as.factor(Survived))) + 
+  labs(fill="Survived") +
+  geom_bar(position = "dodge")
 
+gg_pclass <- ggplot(df, aes(x = Pclass, fill = as.factor(Survived))) + 
+  labs(fill="Survived") +
+  geom_bar(position = "dodge")
 
+gg_sex <- ggplot(df, aes(x = Sex, fill = as.factor(Survived))) + 
+  labs(fill="Survived") +
+  geom_bar(position = "dodge")
 
+grid.arrange(gg_em, gg_ctype, gg_pclass, gg_sex, nrow=2)
+```
+
+```{r representacio_plots}
+par(mfrow=c(2,2))
+
+plot(df$Age,df$Fare, main="Scatterplot de Age vs Fare", 
+     xlab="Age", ylab = "Fare")
+plot(df$cabinNumber, df$Fare, main="Scatterplot de Cabin number vs. Fare", 
+     xlab="Cabin Number", ylab = "Fare")
+plot(df$Parc,df$Fare, main="Scatterplot de Parents/childen vs. Fare", 
+     xlab="Parents/child", ylab = "Fare")
+
+```
