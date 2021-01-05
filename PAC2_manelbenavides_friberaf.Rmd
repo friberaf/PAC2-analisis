@@ -1,0 +1,186 @@
+---
+title: "PAC2"
+author: "Felix Ribera<br>Manel Benavides"
+date: "5/1/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+```
+### Lectura de dades
+
+Es carreguen les dades i es comprova que els tipus de les dades siguin els esperats.
+```{r carrega_dades}
+df <- read.csv("train.csv")
+head(df)
+str(df)
+summary(df)
+```
+
+Hi ha tres variables que no ens aporten informació a nivell estadístic a l’hora d’analitzar les dades. Aquestes variables són: **Name**, **Ticket** i **PassengerId**. Per tant, aquestes variables seran eliminades de cara a l’anàlisi.
+
+
+```{r reduccio}
+
+df <- select(df, -Name)
+df <- select(df, -Ticket)
+df <- select(df, -PassengerId)
+
+```
+
+Es passen els valors categòrics a tipus factor.
+
+```{r discretitzacio }
+
+df$Survived <-  as.factor(df$Survived)
+df$Pclass <- as.factor(df$Pclass)
+df$Sex <- as.factor(df$Sex)
+df$Embarked <- as.factor(df$Embarked)
+
+str(df)
+
+```
+
+Es comprova si hi ha valors NA en el dataset, o valors buits.
+
+```{r check_na}
+colSums(is.na(df))
+colSums(df=="")
+
+```
+
+S'observa que hi ha 177 valors d'Age NA, 687 Cabin buits i 2 Embarked.
+
+
+### Identificació i tractament de valors extrems.
+
+
+Analitzem la distribució dels valors de Fare.
+
+```{r analisi_fare}
+hist(df$Fare, breaks=50, main="Histograma de Fare")
+```
+
+La majoria de valors es troben en el grup < 150 i majoritàriament es troben en el grup < 50. 
+
+
+```{r analisi_outliers}
+par(mfrow=c(2,2))
+boxplot(df$Fare, main="Boxplot de Fare")
+boxplot(df$Parch, main="Boxplot de Parents/children")
+boxplot(df$SibSp, main="Boxplot de Siblings/spouses")
+boxplot(df$Age, main="Boxplot d'Age")
+
+```
+
+Com hem vist en l'histograma anteriorment hi ha outliers en els valors de Fare. Tot i això considerem que no son valors erronis, sino simplement elevats. Es pot deure a habitacions del Titanic més exclusives.
+
+Per la resta de variables veiem que existeixen outliers, però són valors raonables que es deuen a un major número mostres de certs valors i no a errors.
+
+
+### Neteja de la variable Cabin
+
+A cabin hi veiem representat un caràcter amb un número. S'ha considerat interessant separar aquesta informació per veure com afecta tant la ubicació dins el vaixell (representada pel caràcter) com el número d'habitació.
+
+``` {r split_cabin}
+
+f_split_cabin <- function (x) {
+  cabin <- strsplit(x, " ")[[1]][1]
+  type <- substring(cabin, 1, 1)
+  number <- substring(cabin, 2)
+  if (is.na(type)) type <- ""
+  if (is.na(number) || number == "") number <- 0
+  return(c(type, number))
+}
+
+cabinType <- c()
+cabinNumber <- c()
+for (item in df$Cabin){
+  cabin <- f_split_cabin(item)
+  cabinType <- c(cabinType, cabin[1])
+  cabinNumber <- c(cabinNumber, cabin[2])
+} 
+
+df["cabinType"] <- as.factor(cabinType)
+df["cabinNumber"] <- as.integer(cabinNumber)
+
+df <- select(df, -Cabin)
+
+head(df)
+```
+
+
+### Anàlisi de les dades
+
+
+``` {r agrupacio}
+
+# Agrupació per classe.
+df.p1 <- df[df$Pclass == "1",]
+df.p2 <- df[df$Pclass == "2",]
+df.p3 <- df[df$Pclass == "3",]
+
+#Agrupació per port d'embarc
+df.emb_s <- df[df$Embarked == "S",]
+df.emb_q <- df[df$Embarked == "Q",]
+df.emb_c <- df[df$Embarked == "C",]
+
+# Agrupació per cabinType
+df.ctype_a <- df[df$cabinType == "A",]
+df.ctype_b <- df[df$cabinType == "B",]
+df.ctype_c <- df[df$cabinType == "C",]
+df.ctype_d <- df[df$cabinType == "D",]
+df.ctype_e <- df[df$cabinType == "E",]
+df.ctype_f <- df[df$cabinType == "F",]
+df.ctype_g <- df[df$cabinType == "G",]
+df.ctype_t <- df[df$cabinType == "T",]
+
+# Agrupació per sex
+df.male <- df[df$Sex == "male",]
+df.female <- df[df$Sex == "female",]
+
+```` 
+
+## Comprovació de la normalitat i homogenitat
+
+
+```{r check_normalitat}
+
+library(nortest)
+
+alpha = 0.05
+col.names = colnames(df)
+
+for (i in 1:ncol(df)) {
+  if (is.integer(df[,i]) | is.numeric(df[,i])) {
+    p_val = ad.test(df[,i])$p.value
+    if (p_val < alpha) {
+      cat(col.names[i])
+      cat('\n')
+    }
+  }
+}
+
+
+fligner.test(Age ~ Fare, data = df)
+
+```
+
+
+```{r matriu_correlacio}
+
+cor(df)
+
+```
+
+
+
+
+
+
+
+
+
+
